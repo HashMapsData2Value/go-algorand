@@ -732,12 +732,14 @@ var OpSpecs = []OpSpec{
 	{0xe0, "ec_add", opEcAdd, proto("bb:b"), pairingVersion,
 		costByField("g", &EcGroups, []int{
 			BN254g1: 125, BN254g2: 170,
-			BLS12_381g1: 205, BLS12_381g2: 290})},
+			BLS12_381g1: 205, BLS12_381g2: 290,
+			Ed25519: 100})},
 
 	{0xe1, "ec_scalar_mul", opEcScalarMul, proto("bb:b"), pairingVersion,
 		costByField("g", &EcGroups, []int{
 			BN254g1: 1810, BN254g2: 3430,
-			BLS12_381g1: 2950, BLS12_381g2: 6530})},
+			BLS12_381g1: 2950, BLS12_381g2: 6530,
+			Ed25519: 100})},
 
 	{0xe2, "ec_pairing_check", opEcPairingCheck, proto("bb:T"), pairingVersion,
 		costByFieldAndLength("g", &EcGroups, []linearCost{
@@ -783,16 +785,23 @@ var OpSpecs = []OpSpec{
 				baseCost:  14_850,
 				chunkCost: 485,
 				chunkSize: scalarSize,
+			},
+			Ed25519: {
+				baseCost:  100,
+				chunkCost: 100,
+				chunkSize: scalarSize,
 			}})},
 
 	{0xe4, "ec_subgroup_check", opEcSubgroupCheck, proto("b:T"), pairingVersion,
 		costByField("g", &EcGroups, []int{
 			BN254g1: 20, BN254g2: 3_100, // g1 subgroup is nearly a no-op
-			BLS12_381g1: 1_850, BLS12_381g2: 2_340})},
+			BLS12_381g1: 1_850, BLS12_381g2: 2_340,
+			Ed25519: 100})},
 	{0xe5, "ec_map_to", opEcMapTo, proto("b:b"), pairingVersion,
 		costByField("g", &EcGroups, []int{
 			BN254g1: 630, BN254g2: 3_300,
-			BLS12_381g1: 1_950, BLS12_381g2: 8_150})},
+			BLS12_381g1: 1_950, BLS12_381g2: 8_150,
+			Ed25519: 100})},
 }
 
 // OpcodesByVersion returns list of opcodes available in a specific version of TEAL

@@ -65,6 +65,8 @@ func opEcAdd(cx *EvalContext) error {
 		res, err = bls12381G1Add(a, b)
 	case BLS12_381g2:
 		res, err = bls12381G2Add(a, b)
+	case Ed25519:
+		res, err = ed25519Add(a, b)
 	default:
 		err = fmt.Errorf("invalid ec_add group %s", group)
 	}
@@ -104,6 +106,8 @@ func opEcScalarMul(cx *EvalContext) error {
 		res, err = bls12381G1ScalarMul(aBytes, k)
 	case BLS12_381g2:
 		res, err = bls12381G2ScalarMul(aBytes, k)
+	case Ed25519:
+		res, err = ed25519ScalarMul(aBytes, k)
 	default:
 		err = fmt.Errorf("invalid ec_scalar_mul group %s", group)
 	}
@@ -177,6 +181,8 @@ func opEcMultiScalarMul(cx *EvalContext) error {
 		res, err = bls12381G1MultiMul(pointBytes, scalarBytes)
 	case BLS12_381g2:
 		res, err = bls12381G2MultiMul(pointBytes, scalarBytes)
+	case Ed25519:
+		res, err = ed25519MultiMul(pointBytes, scalarBytes)
 	default:
 		err = fmt.Errorf("invalid ec_multi_scalar_mul group %s", group)
 	}
@@ -195,7 +201,7 @@ func opEcSubgroupCheck(cx *EvalContext) error {
 	group := EcGroup(cx.program[cx.pc+1])
 	fs, ok := ecGroupSpecByField(group)
 	if !ok { // no version check yet, both appeared at once
-		return fmt.Errorf("invalid ec_pairing_check group %s", group)
+		return fmt.Errorf("invalid ec_subgroup_check group %s", group)
 	}
 
 	var err error
@@ -209,8 +215,10 @@ func opEcSubgroupCheck(cx *EvalContext) error {
 		ok, err = bls12381G1SubgroupCheck(pointBytes)
 	case BLS12_381g2:
 		ok, err = bls12381G2SubgroupCheck(pointBytes)
+	case Ed25519:
+		ok, err = ed25519SubgroupCheck(pointBytes)
 	default:
-		err = fmt.Errorf("invalid ec_pairing_check group %s", group)
+		err = fmt.Errorf("invalid ec_subgroup_check group %s", group)
 	}
 
 	cx.Stack[last] = boolToSV(ok)
@@ -227,7 +235,7 @@ func opEcMapTo(cx *EvalContext) error {
 	group := EcGroup(cx.program[cx.pc+1])
 	fs, ok := ecGroupSpecByField(group)
 	if !ok { // no version check yet, both appeared at once
-		return fmt.Errorf("invalid ec_pairing_check group %s", group)
+		return fmt.Errorf("invalid ec_map_to group %s", group)
 	}
 
 	var res []byte
@@ -241,8 +249,10 @@ func opEcMapTo(cx *EvalContext) error {
 		res, err = bls12381MapToG1(fpBytes)
 	case BLS12_381g2:
 		res, err = bls12381MapToG2(fpBytes)
+	case Ed25519:
+		res, err = ed25519MapToG2(fpBytes)
 	default:
-		err = fmt.Errorf("invalid ec_pairing_check group %s", group)
+		err = fmt.Errorf("invalid ec_map_to group %s", group)
 	}
 	cx.Stack[last].Bytes = res
 	return err
@@ -258,6 +268,9 @@ const (
 	bn254g1Size  = 2 * bn254fpSize
 	bn254fp2Size = 2 * bn254fpSize
 	bn254g2Size  = 2 * bn254fp2Size
+
+	ed25519fpSize = 32
+	ed25519g1Size = 32
 
 	scalarSize = 32
 )
@@ -896,6 +909,78 @@ func bn254G1SubgroupCheck(pointBytes []byte) (bool, error) {
 
 func bn254G2SubgroupCheck(pointBytes []byte) (bool, error) {
 	point, err := bytesToBN254G2(pointBytes)
+	if err != nil {
+		return false, err
+	}
+	return point.IsInSubGroup(), nil
+}
+
+////// Ed25519
+
+func ed25519ToBytes(g1 *bn254.G1Affine) []byte {
+	retX := g1.X.Bytes()
+	retY := g1.Y.Bytes()
+	pointBytes := make([]byte, bn254g1Size)
+	copy(pointBytes, retX[:])
+	copy(pointBytes[bn254fpSize:], retY[:])
+	return pointBytes
+}
+
+func ed25519Add(aBytes, bBytes []byte) ([]byte, error) {
+	a, err := bytesToEd25519(aBytes)
+	if err != nil {
+		return nil, err
+	}
+	b, err := bytesToEd25519(bBytes)
+	if err != nil {
+		return nil, err
+	}
+	return ed25519ToBytes(a.Add(&a, &b)), nil
+}
+
+func ed25519ScalarMul(aBytes []byte, k *big.Int) ([]byte, error) {
+	a, err := bytesToEd25519(aBytes)
+	if err != nil {
+		return nil, err
+	}
+	return ed25519ToBytes(a.ScalarMultiplication(&a, k)), nil
+}
+
+func ed25519MultiMul(pointBytes, scalarBytes []byte) ([]byte, error) {
+	points, err := bytesToEd25519s(pointBytes, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(scalarBytes) != scalarSize*len(points) {
+		return nil, fmt.Errorf("bad scalars length %d. Expected %d", len(scalarBytes), scalarSize*len(points))
+	}
+	if len(points) <= ed25519MultiMulThreshold {
+		return ed25519MultiMulSmall(points, scalarBytes)
+	}
+	return ed25519MultiMulLarge(points, scalarBytes)
+}
+
+func ed25519MultiMulLarge(points []ed25519Point, scalarBytes []byte) ([]byte, error) {
+	return ed25519ToBytes(res), nil
+}
+
+func ed25519MultiMulSmall(points []ed25519Point, scalarBytes []byte) ([]byte, error) {
+	// There must be at least one point. Start with it, rather than the identity.
+	k := new(big.Int).SetBytes(scalarBytes[:scalarSize])
+	return ed25519ToBytes(&res), nil
+}
+
+func ed25519MapToG1(fpBytes []byte) ([]byte, error) {
+	fp, err := bytesToBN254Field(fpBytes)
+	if err != nil {
+		return nil, err
+	}
+	point := bn254.MapToG1(fp)
+	return ed25519ToBytes(&point), nil
+}
+
+func ed25519SubgroupCheck(pointBytes []byte) (bool, error) {
+	point, err := bytesToEd25519(pointBytes)
 	if err != nil {
 		return false, err
 	}
