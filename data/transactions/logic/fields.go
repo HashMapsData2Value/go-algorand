@@ -729,6 +729,8 @@ const (
 	BLS12_381g1
 	// BLS12_381g2 specifies the G2 group of BLS 12-381
 	BLS12_381g2
+	// Twisted Edwards form of Curve25519
+	Ed25519
 	invalidEcGroup // compile-time constant for number of fields
 )
 
@@ -760,6 +762,7 @@ var ecGroupSpecs = [...]ecGroupSpec{
 	{BN254g2, "G2 of the BN254 curve. Points encoded as 64 byte X following by 64 byte Y"},
 	{BLS12_381g1, "G1 of the BLS 12-381 curve. Points encoded as 48 byte X following by 48 byte Y"},
 	{BLS12_381g2, "G2 of the BLS 12-381 curve. Points encoded as 96 byte X following by 96 byte Y"},
+	{Ed25519, "Twisted Edwards Curve25519. Points encoded as 32 bytes of Y and with lowest bit (parity) of X."},
 }
 
 func ecGroupSpecByField(c EcGroup) (ecGroupSpec, bool) {

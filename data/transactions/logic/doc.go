@@ -48,7 +48,7 @@ var opDescByName = map[string]OpDesc{
 	"ecdsa_pk_recover":    {"for (data A, recovery id B, signature C, D) recover a public key", "S (top) and R elements of a signature, recovery id and data (bottom) are expected on the stack and used to deriver a public key. All values are big-endian encoded. The signed data must be 32 bytes long.", []string{"curve index"}},
 
 	"ec_add": {"for curve points A and B, return the curve point A + B", "" +
-		"A and B are curve points in affine representation: field element X concatenated with field element Y. " +
+		"For BN254 and BLS12_381 A and B are curve points in affine representation: field element X concatenated with field element Y. " +
 		"Field element `Z` is encoded as follows.\n" +
 		"For the base field elements (Fp), `Z` is encoded as a big-endian number and must be lower than the field modulus.\n" +
 		"For the quadratic field extension (Fp2), `Z` is encoded as the concatenation of the individual encoding of the coefficients. " +
@@ -74,7 +74,7 @@ var opDescByName = map[string]OpDesc{
 	},
 	"ec_subgroup_check": {"1 if A is in the main prime-order subgroup of G (including the point at infinity) else 0. Program fails if A is not in G at all.", "", []string{"curve index"}},
 	"ec_map_to": {"maps field element A to group G", "" +
-		"BN254 points are mapped by the SVDW map. BLS12-381 points are mapped by the SSWU map.\n" +
+		"Ed25519 points are mapped by the Elligator 2 map. BN254 points are mapped by the SVDW map. BLS12-381 points are mapped by the SSWU map.\n" +
 		"G1 element inputs are base field elements and G2 element inputs are quadratic field elements, with nearly the same encoding rules (for field elements) as defined in `ec_add`. There is one difference of encoding rule: G1 element inputs do not need to be 0-padded if they fit in less than 32 bytes for BN254 and less than 48 bytes for BLS12-381. (As usual, the empty byte array represents 0.) G2 elements inputs need to be always have the required size.",
 		[]string{"curve index"},
 	},

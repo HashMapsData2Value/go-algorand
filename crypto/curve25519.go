@@ -247,3 +247,21 @@ func (v SignatureVerifier) VerifyBytes(message []byte, sig Signature) bool {
 	cryptoSigSecretsVerifyBytesTotal.Inc(nil)
 	return ed25519Verify(ed25519PublicKey(v), message, ed25519Signature(sig))
 }
+
+type Ed25519Point ed25519PublicKey
+
+func (p *Ed25519Point) Add(q *Ed25519Point) *Ed25519Point {
+	var result [32]byte
+	C.crypto_core_ed25519_add((*C.uchar)(&result[0]), (*C.uchar)(&p.value[0]), (*C.uchar)(&q.value[0]))
+	return &Ed25519Point{value: result[:]}
+}
+
+func (p *Ed25519Point) ScalarMult(scalar [32]byte) *Ed25519Point {
+	var result [32]byte
+	C.crypto_scalarmult_ed25519_noclamp((*C.uchar)(&result[0]), (*C.uchar)(&scalar.value[0]), (*C.uchar)(&p.value[0]))
+	return &Ed25519Point{value: result[:]}
+}
+
+// crypto_core_ed25519_from_uniform
+
+// crypto_core_ed25519_is_valid_point
